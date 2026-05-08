@@ -1,0 +1,7 @@
+.env
+.env.*
+*.log
+bin/
+dist/
+tmp/
+coverage.out
