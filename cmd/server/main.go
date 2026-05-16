@@ -1,39 +1,64 @@
 package main
 
 import (
+	"log"
 	"net/http"
-	"os"
+	"time"
 
+	"github.com/JasperRosales/finals-appointment-system/internal/appointments"
+	"github.com/JasperRosales/finals-appointment-system/internal/auth"
+	"github.com/JasperRosales/finals-appointment-system/internal/config"
+	"github.com/JasperRosales/finals-appointment-system/internal/database"
+	"github.com/JasperRosales/finals-appointment-system/internal/integrations/medical"
+	"github.com/JasperRosales/finals-appointment-system/internal/integrations/notification"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		panic(err)
-	}
-
-	gin.SetMode(getEnv("GIN_MODE", gin.DebugMode))
-
-	host := getEnv("HOST", "")
-	port := getEnv("PORT", "8080")
+	cfg := config.Load()
+	gin.SetMode(cfg.GinMode)
 
 	router := gin.Default()
+	router.SetTrustedProxies(nil)
 
 	router.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"message": "Gin server is running",
+			"message": "Finals Appointment Scheduling API",
 		})
 	})
 
-	if err := router.Run(host + ":" + port); err != nil {
-		panic(err)
-	}
-}
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status": "ok",
+		})
+	})
 
-func getEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok && value != "" {
-		return value
+	db, err := database.Open(cfg.DatabaseDSN)
+	if err != nil {
+		log.Fatalf("failed to initialize database: %v", err)
 	}
-	return fallback
+
+	if err := db.AutoMigrate(&appointments.Appointment{}); err != nil {
+		log.Fatalf("failed to run migrations: %v", err)
+	}
+
+	httpClient := &http.Client{Timeout: cfg.HTTPTimeout}
+	authClient := auth.NewClient(httpClient, cfg.AuthBaseURL)
+	auth.RegisterPublicRoutes(router, authClient)
+
+	medicalClient := medical.NewClient(
+		httpClient,
+		cfg.MedicalRecordsBaseURL,
+		cfg.MedicalRecordsDoctorsPath,
+		cfg.MedicalRecordsPatientPathTemplate,
+	)
+	notifier := notification.NewClient(httpClient, cfg.NotificationBaseURL, cfg.NotificationPath)
+	service := appointments.NewService(db, medicalClient, notifier, time.Now)
+	controller := appointments.NewController(service)
+
+	appointments.RegisterRoutes(router, auth.Middleware(authClient), controller)
+
+	if err := router.Run(cfg.Host + ":" + cfg.Port); err != nil {
+		log.Fatalf("failed to start server: %v", err)
+	}
 }
