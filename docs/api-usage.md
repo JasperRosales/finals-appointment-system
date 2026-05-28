@@ -8,36 +8,47 @@ Local:
 http://localhost:8080
 ```
 
-## Start the API
+## Run the API
 
 ```bash
-go run ./cmd/server
+npm install
+npm start
 ```
 
 ## Required Environment Variables
 
 ```env
 PORT=8080
-DATABASE_DSN=appointments.db
+HOST=0.0.0.0
 AUTH_BASE_URL=https://has-auth.onrender.com
 MEDICAL_RECORDS_BASE_URL=<your-medical-records-service-url>
 NOTIFICATION_BASE_URL=<your-notification-service-url>
+ADAPTER_URL=<your-adapter-service-url>
 ```
 
 Optional:
 
 ```env
-HOST=
-GIN_MODE=debug
+NODE_ENV=development
 HTTP_TIMEOUT_SECONDS=10
 MEDICAL_RECORDS_DOCTORS_PATH=/doctors
 MEDICAL_RECORDS_PATIENT_PATH_TEMPLATE=/patients/%s
-NOTIFICATION_PATH=/notifications/appointments
+NOTIFICATION_PATH=/api/notify
+ADAPTER_APPOINTMENTS_GET_PATH_TEMPLATE=/api/adapter/appointments/%s
+ADAPTER_APPOINTMENTS_PATIENT_PATH_TEMPLATE=/api/adapter/appointments/patient/%s
+ADAPTER_APPOINTMENTS_DOCTOR_PATH_TEMPLATE=/api/adapter/appointments/doctor/%s
+ADAPTER_APPOINTMENTS_CREATE_PATH=/api/adapter/appointments/create
+ADAPTER_APPOINTMENTS_UPDATE_PATH_TEMPLATE=/api/adapter/appointments/%s
+ADAPTER_APPOINTMENTS_CANCEL_PATH_TEMPLATE=/api/adapter/appointments/%s/cancel
+```
+
+## Health Check
+
+```http
+GET /health
 ```
 
 ## Public Endpoints (Auth Proxy)
-
-These routes are exposed by this API and forwarded to the auth service.
 
 ### Register
 
@@ -46,6 +57,7 @@ POST /api/auth/register
 Content-Type: application/json
 ```
 
+**Content:**
 ```json
 {
   "firstName": "John",
@@ -55,17 +67,28 @@ Content-Type: application/json
 }
 ```
 
-### Login (creates `token` cookie)
+### Login
 
 ```http
 POST /api/auth/login
 Content-Type: application/json
 ```
 
+**Content:**
 ```json
 {
   "email": "john@example.com",
   "password": "Secret123!"
+}
+```
+
+Login returns a JWT token in the response. Use this token in the `Authorization` header for protected routes.
+
+**Response:**
+```json
+{
+  "message": "Login successful",
+  "token": "YOUR_JWT_TOKEN"
 }
 ```
 
@@ -79,43 +102,40 @@ POST /api/auth/logout
 
 ```http
 GET /api/auth/me
+Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
-## Protected Endpoints (Require JWT Cookie)
+## Protected Endpoints
 
-All endpoints below require `token` cookie from login.
+All protected routes require the JWT token via the `Authorization` header with `Bearer` token format:
 
-### 1) Get Doctor Available Schedule by Date
+```http
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+### Get Doctor Available Schedule by Date
 
 ```http
 GET /api/doctors/:doctorId/schedule?date=YYYY-MM-DD
+Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
-Example:
-
-```bash
-curl -b cookies.txt "http://localhost:8080/api/doctors/doc-1/schedule?date=2026-05-20"
-```
-
-### 2) Get Available Doctors by Date
+### Get Available Doctors by Date
 
 ```http
 GET /api/doctors/available?date=YYYY-MM-DD
+Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
-Example:
-
-```bash
-curl -b cookies.txt "http://localhost:8080/api/doctors/available?date=2026-05-20"
-```
-
-### 3) Create Appointment
+### Create Appointment
 
 ```http
 POST /api/appointments
 Content-Type: application/json
+Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
+**Content:**
 ```json
 {
   "patientId": "patient-1",
@@ -124,72 +144,57 @@ Content-Type: application/json
 }
 ```
 
-Example:
-
-```bash
-curl -b cookies.txt -X POST "http://localhost:8080/api/appointments" \
-  -H "Content-Type: application/json" \
-  -d '{"patientId":"patient-1","doctorId":"doc-1","appointmentDate":"2026-05-20T10:00:00Z"}'
-```
-
-### 4) Cancel Appointment
+### Cancel Appointment
 
 ```http
 PATCH /api/appointments/:id/cancel
+Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
-Example:
-
-```bash
-curl -b cookies.txt -X PATCH "http://localhost:8080/api/appointments/1/cancel"
-```
-
-### 5) Reschedule Appointment
+### Reschedule Appointment
 
 ```http
 PATCH /api/appointments/:id/reschedule
 Content-Type: application/json
+Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
+**Content:**
 ```json
 {
   "appointmentDate": "2026-05-21T11:00:00Z"
 }
 ```
 
-Example:
+## Bearer Token Flow with `curl`
+
+Login and extract token:
 
 ```bash
-curl -b cookies.txt -X PATCH "http://localhost:8080/api/appointments/1/reschedule" \
-  -H "Content-Type: application/json" \
-  -d '{"appointmentDate":"2026-05-21T11:00:00Z"}'
-```
-
-## Cookie-Based Flow with `curl`
-
-Login and save cookie:
-
-```bash
-curl -c cookies.txt -X POST "http://localhost:8080/api/auth/login" \
+curl -X POST "http://localhost:8080/api/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"john@example.com","password":"Secret123!"}'
 ```
 
-Use saved cookie for protected routes:
-
-```bash
-curl -b cookies.txt "http://localhost:8080/api/doctors/available?date=2026-05-20"
+Response will contain your JWT token:
+```json
+{
+  "message": "Login successful",
+  "token": "YOUR_JWT_TOKEN"
+}
 ```
 
-Logout:
+Use the token in subsequent requests:
 
 ```bash
-curl -b cookies.txt -X POST "http://localhost:8080/api/auth/logout"
+curl -X GET "http://localhost:8080/api/doctors/available?date=2026-05-20" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
-## Common Error Responses
+## Common Errors
 
-- `400` invalid input or invalid schedule rules
-- `401` missing/invalid token
-- `404` doctor/patient/appointment not found
-- `502` dependency service unavailable (auth, medical records, notifications)
+- `400` invalid input, date, or schedule rules
+- `401` missing or invalid token
+- `404` route, doctor, patient, or appointment not found
+- `409` double booking conflict
+- `502` dependency service unavailable or malformed response

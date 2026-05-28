@@ -6,6 +6,13 @@ Base URL:
 https://has-auth.onrender.com/api
 ```
 
+JWT_SECRET:
+```
+JWT_SECRET=wkzg15151515@
+```
+jwt secret for verifying the token.
+
+
 ---
 
 # Test Admin Account
@@ -21,13 +28,24 @@ Role: admin
 # Authentication Flow
 
 ```txt
-Register → Login → Cookie Created → Access Protected Routes
+Register → Login → Receive JWT Token → Access Protected Routes
 ```
 
 The API uses:
-- JWT
-- HTTP-only Cookies
-- Role-Based Access Control (RBAC)
+
+* JWT
+* Bearer Token Authentication
+* Role-Based Access Control (RBAC)
+
+---
+
+# Authorization Header Format
+
+Protected routes require a JWT token in the request headers.
+
+```http
+Authorization: Bearer YOUR_TOKEN
+```
 
 ---
 
@@ -95,11 +113,12 @@ https://has-auth.onrender.com/api/auth/login
 
 ```json
 {
-  "message": "Login successful"
+  "message": "Login successful",
+  "token": "YOUR_JWT_TOKEN"
 }
 ```
 
-After login, the server automatically creates a secure authentication cookie.
+After login, the API returns a JWT token that must be included in protected requests.
 
 ---
 
@@ -117,6 +136,12 @@ GET /all
 
 ```txt
 https://has-auth.onrender.com/api/all
+```
+
+## Headers
+
+```http
+Authorization: Bearer YOUR_TOKEN
 ```
 
 ## Success Response
@@ -149,6 +174,12 @@ PATCH /users/:userId/role
 
 ```txt
 https://has-auth.onrender.com/api/users/USER_ID/role
+```
+
+## Headers
+
+```http
+Authorization: Bearer YOUR_TOKEN
 ```
 
 ## Body
@@ -187,9 +218,26 @@ POST https://has-auth.onrender.com/api/auth/login
 }
 ```
 
+## Response
+
+```json
+{
+  "message": "Login successful",
+  "token": "YOUR_JWT_TOKEN"
+}
+```
+
 ---
 
-## Step 2 — Assign Role
+## Step 2 — Use Token
+
+```http
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+---
+
+## Step 3 — Assign Role
 
 ```http
 PATCH https://has-auth.onrender.com/api/users/USER_ID/role
@@ -199,6 +247,30 @@ PATCH https://has-auth.onrender.com/api/users/USER_ID/role
 {
   "role": "staff"
 }
+```
+
+---
+
+# Frontend Example
+
+## Store Token
+
+```js
+localStorage.setItem("token", data.token);
+```
+
+---
+
+## Send Token
+
+```js
+const token = localStorage.getItem("token");
+
+fetch("https://has-auth.onrender.com/api/all", {
+  headers: {
+    Authorization: `Bearer ${token}`
+  }
+});
 ```
 
 ---
@@ -247,21 +319,20 @@ PATCH https://has-auth.onrender.com/api/users/USER_ID/role
 
 # Current Roles
 
-| Role | Access |
-|---|---|
-| patient | Basic access |
-| doctor | Doctor access |
-| staff | Staff access |
-| admin | Full access |
+| Role    | Access        |
+| ------- | ------------- |
+| patient | Basic access  |
+| doctor  | Doctor access |
+| staff   | Staff access  |
+| admin   | Full access   |
 
 ---
 
 # Tech Stack
 
-- Node.js
-- Express.js
-- PostgreSQL
-- Supabase
-- JWT
-- Cookies
-- Render
+* Node.js
+* Express.js
+* PostgreSQL
+* Supabase
+* JWT
+* Render
