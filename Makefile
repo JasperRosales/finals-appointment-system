@@ -2,7 +2,7 @@
 
 init:
 	@echo "Initializing project..."
-	@go mod tidy
+	@npm install
 	@echo "Pulling latest dependencies..."
 	@git pull origin main
 	@read -p "Create .env file? (y/n): " confirm; \
@@ -22,8 +22,3 @@ push:
 	@git push origin main
 	@echo "Pushing commits complete."
 
-check:
-	@echo "Running code checks..."
-	@go fmt ./...
-	@go vet ./...
-	@echo "Code checks complete."
