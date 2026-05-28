@@ -42,7 +42,7 @@ router.post('/logout', (req, res) => {
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     if (!req.user || !req.user.id) {
-      throw new AppError(502, 'Auth service returned an invalid user payload', 'AUTH_ME_INVALID');
+      throw new AppError(502, ' Auth service returned an invalid user payload', 'AUTH_ME_INVALID');
     }
 
     res.status(200).json({
@@ -53,5 +53,6 @@ router.get('/me', requireAuth, async (req, res, next) => {
     next(error);
   }
 });
+
 
 module.exports = router;

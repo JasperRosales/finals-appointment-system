@@ -6,7 +6,7 @@ const {
   rescheduleAppointmentById
 } = require('../services/appointmentService');
 
-const router = express.Router();
+const  router = express.Router();
 
 router.post('/', requireAuth, async (req, res, next) => {
   try {
@@ -26,7 +26,7 @@ router.patch('/:id/cancel', requireAuth, async (req, res, next) => {
     const result = await cancelAppointmentById(req.params.id, req.user, req.authToken);
     res.status(200).json({
       success: true,
-      message: 'Appointment cancelled',
+      message: 'Appointment  cancelled',
       data: result
     });
   } catch (error) {

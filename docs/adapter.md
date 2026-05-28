@@ -7,6 +7,7 @@ The **HAS Adapter Layer** is a middleware service that bridges a modern healthca
 
 ## 🚀 Base URL
 
+
 All Adapter Layer API requests should be prefixed with the following base URL:
 
 ```text

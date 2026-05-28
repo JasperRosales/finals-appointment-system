@@ -4,7 +4,7 @@ const doctorRoutes = require('./routes/doctorRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
-const app = express();
+const  app = express();
 
 app.use(express.json({ limit: '1mb' }));
 
@@ -16,7 +16,7 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/doctors', doctorRoutes);
+app.use('/api/doctors', doctorRoutes );
 app.use('/api/appointments', appointmentRoutes);
 
 app.use(notFoundHandler);
