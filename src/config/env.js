@@ -16,7 +16,7 @@ function toBoolean(value, fallback = false) {
 }
 
 const env = {
-  port: toNumber(process.env.PORT, 8080),
+  port: toNumber(process.env.PORT,  8080),
   host: process.env.HOST || '0.0.0.0',
   nodeEnv: process.env.NODE_ENV || 'development',
   authBaseUrl: process.env.AUTH_BASE_URL || 'https://has-auth.onrender.com',
